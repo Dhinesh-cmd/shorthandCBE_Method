@@ -103,7 +103,7 @@ const modalSubtitle     = document.getElementById("modalSubtitle");
     card.innerHTML = `
       <div class="card-number">${String(i).padStart(2, "0")}</div>
       <div class="card-label">Dictation ${i}</div>
-      <div class="card-meta">~5 min · 180 WPM</div>
+      <div class="card-meta">~5 min · 200 WPM</div>
       <div class="card-arrow">→</div>
     `;
     card.addEventListener("click", () => openWarningModal(key, i));
@@ -116,7 +116,7 @@ const modalSubtitle     = document.getElementById("modalSubtitle");
    ────────────────────────────────────────────── */
 function openWarningModal(key, index) {
   selectedAudioKey = key;
-  modalSubtitle.textContent = `Dictation ${index} · 180 WPM`;
+  modalSubtitle.textContent = `Dictation ${index} · 200 WPM`;
   modalOverlay.classList.add("open");
 }
 
