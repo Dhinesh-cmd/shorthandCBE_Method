@@ -103,7 +103,7 @@ const modalSubtitle     = document.getElementById("modalSubtitle");
     card.innerHTML = `
       <div class="card-number">${String(i).padStart(2, "0")}</div>
       <div class="card-label">Dictation ${i}</div>
-      <div class="card-meta">~5 min · 200 WPM</div>
+      <div class="card-meta">~5 min · 180 WPM</div>
       <div class="card-arrow">→</div>
     `;
     card.addEventListener("click", () => openWarningModal(key, i));
@@ -116,7 +116,7 @@ const modalSubtitle     = document.getElementById("modalSubtitle");
    ────────────────────────────────────────────── */
 function openWarningModal(key, index) {
   selectedAudioKey = key;
-  modalSubtitle.textContent = `Dictation ${index} · 200 WPM`;
+  modalSubtitle.textContent = `Dictation ${index} · 180 WPM`;
   modalOverlay.classList.add("open");
 }
 
@@ -452,9 +452,6 @@ function calculateResults(reference, submitted) {
   const refWords  = tokenize(reference);
   const userWords = tokenize(submitted);
 
-  // BUG FIX: previously the LCS matrix was built but never used in scoring.
-  // CBE shorthand awards marks per word; a missing word should not penalise
-  // all subsequent words. LCS-based alignment fixes this.
   const dp  = buildLCSMatrix(refWords, userWords);
   const alignment = traceback(dp, refWords, userWords);
 
@@ -463,11 +460,35 @@ function calculateResults(reference, submitted) {
   let missingWords = 0;
   let extraWords   = 0;
 
-  for (const op of alignment) {
-    if (op === "match")   correctWords++;
-    else if (op === "sub")   wrongWords++;
-    else if (op === "del")   missingWords++;   // in ref but not in user
-    else if (op === "ins")   extraWords++;     // in user but not in ref
+  // traceback returns ops in reverse — reverse to get document order
+  const ops = alignment.slice().reverse();
+
+  let ri = 0; // pointer into refWords
+  let ui = 0; // pointer into userWords
+
+  // alignedPairs: { op, userWord, refWord } in reading order
+  const alignedPairs = [];
+
+  for (const op of ops) {
+    if (op === "match") {
+      alignedPairs.push({ op: "match", userWord: userWords[ui], refWord: refWords[ri] });
+      correctWords++;
+      ri++; ui++;
+    } else if (op === "sub") {
+      alignedPairs.push({ op: "sub", userWord: userWords[ui], refWord: refWords[ri] });
+      wrongWords++;
+      ri++; ui++;
+    } else if (op === "del") {
+      // word in reference but missing from user text
+      alignedPairs.push({ op: "del", userWord: null, refWord: refWords[ri] });
+      missingWords++;
+      ri++;
+    } else if (op === "ins") {
+      // extra word typed by user, not in reference
+      alignedPairs.push({ op: "ins", userWord: userWords[ui], refWord: null });
+      extraWords++;
+      ui++;
+    }
   }
 
   const totalWords = refWords.length;
@@ -478,7 +499,7 @@ function calculateResults(reference, submitted) {
   // CBE passing threshold: 95 % accuracy
   const pass = accuracy >= 95;
 
-  return { totalWords, correctWords, wrongWords, missingWords, extraWords, accuracy, pass };
+  return { totalWords, correctWords, wrongWords, missingWords, extraWords, accuracy, pass, alignedPairs };
 }
 
 /* Build LCS matrix */
@@ -564,6 +585,96 @@ function showResults(results) {
     document.getElementById("barMissing").style.width = pct(results.missingWords);
     document.getElementById("barExtra").style.width   = pct(results.extraWords);
   }, 400);
+
+  // ── Typed Text Review Panel ──────────────────
+  renderTypedReview(results.alignedPairs);
+}
+
+/* ──────────────────────────────────────────────
+   14b. renderTypedReview()
+   Renders the white review box with colour-coded
+   word spans:
+     • match → plain black text
+     • sub   → red text + underline + correct word shown below
+     • del   → orange dashed placeholder "[missing: word]"
+     • ins   → purple strikethrough (extra word)
+   ────────────────────────────────────────────── */
+function renderTypedReview(alignedPairs) {
+  const box = document.getElementById("typedReviewBox");
+  if (!box) return;
+
+  box.innerHTML = ""; // clear previous
+
+  if (!alignedPairs || alignedPairs.length === 0) {
+    box.textContent = "(No text was typed.)";
+    return;
+  }
+
+  // We'll build the display using the USER's typed words as the base flow.
+  // Missing words (del) are injected inline at the correct position.
+  alignedPairs.forEach((pair, idx) => {
+    // Add a space before every word except the first visible one
+    if (idx > 0) {
+      box.appendChild(document.createTextNode(" "));
+    }
+
+    if (pair.op === "match") {
+      // Correct — plain text
+      const span = document.createElement("span");
+      span.className = "word-slot";
+      span.textContent = pair.userWord;
+      box.appendChild(span);
+
+    } else if (pair.op === "sub") {
+      // Wrong word — red underlined + character-level diff + correct word below
+      const wrapper = document.createElement("span");
+      wrapper.className = "word-slot word-wrong";
+      wrapper.title = `Correct: ${pair.refWord}`;
+
+      // Character-level highlight: red for wrong chars, dark for matching chars
+      const typedChars  = pair.userWord.split("");
+      const correctChars = pair.refWord.split("");
+      const maxLen = Math.max(typedChars.length, correctChars.length);
+
+      const charSpan = document.createElement("span");
+      charSpan.className = "word-chars";
+
+      for (let ci = 0; ci < typedChars.length; ci++) {
+        const ch = document.createElement("span");
+        ch.textContent = typedChars[ci];
+        if (ci >= correctChars.length || typedChars[ci].toLowerCase() !== correctChars[ci].toLowerCase()) {
+          ch.style.background = "rgba(220,38,38,0.18)";
+          ch.style.borderRadius = "2px";
+        }
+        charSpan.appendChild(ch);
+      }
+      wrapper.appendChild(charSpan);
+
+      // The correct word hint shown below
+      const hint = document.createElement("span");
+      hint.className = "correct-hint";
+      hint.textContent = `✓ ${pair.refWord}`;
+      wrapper.appendChild(hint);
+
+      box.appendChild(wrapper);
+
+    } else if (pair.op === "del") {
+      // Missing word — show orange placeholder
+      const span = document.createElement("span");
+      span.className = "word-slot word-missing";
+      span.title = "This word was missing from your transcription";
+      span.textContent = `[${pair.refWord}]`;
+      box.appendChild(span);
+
+    } else if (pair.op === "ins") {
+      // Extra word — purple strikethrough
+      const span = document.createElement("span");
+      span.className = "word-slot word-extra";
+      span.title = "Extra word — not in the original passage";
+      span.textContent = pair.userWord;
+      box.appendChild(span);
+    }
+  });
 }
 
 /* ──────────────────────────────────────────────
