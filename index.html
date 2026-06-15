@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShorthandPro — Examination Portal</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body>
+
+  <!-- ─── SCAN-LINE OVERLAY ─── -->
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <!-- ─── HEADER ─── -->
+  <header class="site-header">
+    <div class="logo">
+      <span class="logo-mark">⬡</span>
+      <span class="logo-text">ShorthandPro</span>
+      <span class="logo-badge">Examination Portal</span>
+    </div>
+    <div class="header-status" id="headerStatus">Select a dictation to begin</div>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       SCREEN 1 — AUDIO SELECTION
+  ══════════════════════════════════════ -->
+  <main id="screenSelection" class="screen active">
+    <section class="hero">
+      <p class="hero-eyebrow">Certified Shorthand Assessment</p>
+      <h1 class="hero-title">Choose Your<br /><span class="accent">Dictation</span></h1>
+      <p class="hero-sub">10 professionally recorded passages · 180 WPM · Approximately 5 minutes each</p>
+    </section>
+
+    <div class="cards-grid" id="audioCardsGrid">
+      <!-- Injected by JS -->
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════
+       SCREEN 2 — DICTATION PHASE
+  ══════════════════════════════════════ -->
+  <main id="screenDictation" class="screen">
+    <button class="btn btn-primary back-btn" onclick="goHome()">
+      ← Back to Home
+    </button>
+    <div class="dictation-shell">
+
+      <div class="dictation-header">
+        <div class="dictation-label" id="dictationLabel">Dictation 1</div>
+        <div class="phase-badge">LISTENING PHASE</div>
+      </div>
+
+      <!-- Waveform visualiser (pure CSS animated bars) -->
+      <div class="waveform-container" id="waveformContainer" aria-label="Audio playing">
+        <div class="waveform" id="waveform">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <p class="waveform-label" id="waveformLabel">Preparing audio…</p>
+      </div>
+
+      <!-- Hidden audio element — no controls ever shown -->
+      <audio id="examAudio" preload="auto"></audio>
+
+      <!-- Progress bar (display only — not interactive) -->
+      <div class="audio-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="audio-progress-fill" id="audioProgressFill"></div>
+      </div>
+      <div class="audio-time-row">
+        <span id="audioElapsed">0:00</span>
+        <span id="audioDuration">—</span>
+      </div>
+
+      <div class="dictation-rules">
+        <div class="rule-item"><span class="rule-icon">🔒</span> Audio cannot be paused or rewound</div>
+        <div class="rule-item"><span class="rule-icon">🎧</span> Listen carefully — one playback only</div>
+        <div class="rule-item"><span class="rule-icon">📝</span> Typing test opens when audio ends</div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════
+       SCREEN 3 — TYPING TEST PHASE
+  ══════════════════════════════════════ -->
+  <main id="screenTyping" class="screen">
+    <button class="btn btn-primary back-btn" onclick="goHome()">
+      ← Back to Home
+    </button>
+    <div class="typing-shell">
+
+      <div class="typing-header">
+        <div>
+          <p class="phase-badge">TRANSCRIPTION PHASE</p>
+          <h2 class="typing-title">Type What You Heard</h2>
+        </div>
+        <div class="timer-block">
+          <div class="timer-label">Time Remaining</div>
+          <div class="timer-display" id="timerDisplay">01:45:00</div>
+          <div class="timer-bar-track">
+            <div class="timer-bar-fill" id="timerBarFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="typing-area-wrap">
+        <textarea id="typingArea" class="typing-area" placeholder="Click 'Start Typing Test' to begin…" disabled
+          spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        <div class="word-counter" id="wordCounter">0 words</div>
+      </div>
+
+      <div class="typing-actions">
+        <button id="btnStartTyping" class="btn btn-primary btn-lg">
+          <span>▶</span> Start Typing Test
+        </button>
+        <button id="btnSubmit" class="btn btn-success btn-lg" style="display:none;">
+          <span>✓</span> Submit Test
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════
+       SCREEN 4 — RESULTS
+  ══════════════════════════════════════ -->
+  <main id="screenResults" class="screen">
+
+    <div class="results-shell">
+
+      <div class="results-header">
+        <p class="phase-badge">EXAM COMPLETE</p>
+        <h2 class="results-title">Your Results</h2>
+        <div class="verdict-badge" id="verdictBadge">—</div>
+      </div>
+
+      <!-- Accuracy ring -->
+      <div class="accuracy-ring-wrap">
+        <svg class="accuracy-ring" viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="ring-bg" cx="100" cy="100" r="80" />
+          <circle class="ring-fill" id="ringFill" cx="100" cy="100" r="80" stroke-dasharray="502.65"
+            stroke-dashoffset="502.65" />
+        </svg>
+        <div class="accuracy-center">
+          <span class="accuracy-pct" id="accuracyPct">0%</span>
+          <span class="accuracy-lbl">Accuracy</span>
+        </div>
+      </div>
+
+      <!-- Stats grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="statTotal">—</div>
+          <div class="stat-label">Total Words</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar" id="barTotal" style="width:100%;background:var(--accent)"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statCorrect">—</div>
+          <div class="stat-label">Correct</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar" id="barCorrect" style="background:#22c55e"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statWrong">—</div>
+          <div class="stat-label">Wrong</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar" id="barWrong" style="background:#f43f5e"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statMissing">—</div>
+          <div class="stat-label">Missing</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar" id="barMissing" style="background:#fb923c"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statExtra">—</div>
+          <div class="stat-label">Extra</div>
+          <div class="stat-bar-track">
+            <div class="stat-bar" id="barExtra" style="background:#a78bfa"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-actions">
+        <button class="btn btn-primary" onclick="goHome()">← Take Another Exam</button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ══════════════════════════════════════
+       MODAL — WARNING POPUP
+  ══════════════════════════════════════ -->
+  <div id="modalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div class="modal-icon">⚠️</div>
+      <h2 class="modal-title" id="modalTitle">Before You Begin</h2>
+      <p class="modal-subtitle" id="modalSubtitle">Dictation 1 · 180 WPM</p>
+      <ul class="modal-rules">
+        <li><span class="check">✓</span> Audio <strong>cannot be paused</strong></li>
+        <li><span class="check">✓</span> Audio <strong>cannot be skipped</strong> or rewound</li>
+        <li><span class="check">✓</span> Closing or refreshing = <strong>automatic failure</strong></li>
+        <li><span class="check">✓</span> You can only listen <strong>once</strong></li>
+      </ul>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnCancel">Cancel</button>
+        <button class="btn btn-primary btn-lg" id="btnStartExam">Start Exam</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MODAL — FAILURE
+  ══════════════════════════════════════ -->
+  <div id="failOverlay" class="modal-overlay" role="alertdialog" aria-modal="true" aria-label="Exam Failed">
+    <div class="modal-box modal-fail">
+      <div class="modal-icon">✖</div>
+      <h2 class="modal-title">Exam Failed</h2>
+      <p class="modal-text">You exited during the dictation phase. The exam has been terminated.</p>
+      <button class="btn btn-primary" onclick="restartExam()">Return to Selection</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
